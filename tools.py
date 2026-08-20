@@ -214,7 +214,7 @@ def find_cross_rep_gaps(con):
     flowed between them but had no channel to travel through."""
     rows = con.execute(
         """SELECT property_id, COUNT(DISTINCT rep) n
-           FROM visits GROUP BY property_id HAVING n > 1""").fetchall()
+           FROM visits GROUP BY property_id HAVING COUNT(DISTINCT rep) > 1""").fetchall()
     out = []
     for r in rows:
         h = get_visit_history(con, r["property_id"])

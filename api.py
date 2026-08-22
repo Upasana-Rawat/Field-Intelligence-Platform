@@ -28,6 +28,7 @@ STATIC = os.path.join(HERE, "static")
 app = FastAPI(title="Field Intelligence V2")
 
 REPS = ["Rep A", "Rep B", "Rep C", "Rep D"]
+GOOGLE_SHEET_URL = os.environ.get("GOOGLE_SHEET_URL", "").strip()
 LIVE = {"SPACE_SHORTAGE", "DEMAND_CAPACITY_MISMATCH", "OPERATIONAL_INEFFICIENCY",
         "FUTURE_OPPORTUNITY", "SITE_AVAILABLE", "ACCOUNT_AT_RISK"}
 _con = None
@@ -126,9 +127,16 @@ def bootstrap():
     rows = index_rows()
     fu = tools.get_open_followups(con(), limit=500)
     gaps = tools.find_cross_rep_gaps(con())
+    activity = [dict(r) for r in con().execute("""
+        SELECT v.visit_id, v.rep, v.outcome_category, v.remarks, v.created_at, v.visit_date,
+               v.contact_name, v.contact_phone, v.contact_email, p.property_name, p.property_id
+        FROM visits v JOIN properties p ON p.property_id=v.property_id
+        WHERE v.source='app_entry'
+        ORDER BY v.created_at DESC LIMIT 50""").fetchall()]
     return {
         "reps": REPS,
         "properties": rows,
+        "activity": activity,
         "stats": {
             "properties": len(rows),
             "visits": con().execute("SELECT COUNT(*) c FROM visits").fetchone()["c"],
@@ -141,6 +149,7 @@ def bootstrap():
         "outcomes": extract.OUTCOMES, "follow_states": extract.FOLLOW_UPS,
         "discovery": {"provider": "google" if discover.GOOGLE_KEY else "osm",
                       "google_enabled": bool(discover.GOOGLE_KEY)},
+        "google_sheet_url": GOOGLE_SHEET_URL,
     }
 
 
@@ -246,8 +255,8 @@ def team():
         cover[a]["total"] += 1
         cover[a]["visited"] += int(r["visits"] > 0)
         cover[a]["live"] += int(r["status"] in ("live", "client"))
-    no_req=[r for r in rows if r["status"]=="No Requirement"]
-    opportunities=[r for r in rows if r["status"] in ("Opportunity","Follow-up")]
+    no_req=[r for r in rows if str(r.get("status") or "").lower()=="no requirement"]
+    opportunities=[r for r in rows if str(r.get("status") or "").lower() in ("opportunity","follow-up")]
     return {"overlaps": tools.find_cross_rep_gaps(con()),
             "followups": tools.get_open_followups(con(), limit=500),
             "coverage": cover, "pending_merges": aliases.pending_candidates(con()),
@@ -438,6 +447,13 @@ def route(origin_lat: float, origin_lon: float, points: str, mode: str = "WALK")
             "duration_s": round(total / 1000 / speed * 3600),
             "points": [[a, b] for a, b in seq],
             "warning": "Road/footpath routing is unavailable; distance and time are estimates."}
+
+
+@app.get("/api/google-sheet")
+def google_sheet():
+    if not GOOGLE_SHEET_URL:
+        raise HTTPException(404, "GOOGLE_SHEET_URL is not configured")
+    return {"url": GOOGLE_SHEET_URL}
 
 
 @app.get("/api/export")

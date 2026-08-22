@@ -1,23 +1,20 @@
-FINAL GITHUB UPLOAD
+FINAL 7-FILE REPLACEMENT PACKAGE
 
-Repository: Field-Intelligence-Platform
+Replace exactly these 7 files in GitHub:
+api.py
+db.py
+tools.py
+agent.py
+static/index.html
+static/app.js
+static/style.css
 
-1. Extract this package.
-2. Upload the CONTENTS of this folder to the repository ROOT.
-3. The data file must be:
-   data/synthetic_field_visits_110_records.csv
-4. Do not upload the ZIP itself.
-5. Do not upload .env or any secret/API key.
-6. Do not delete the Render PostgreSQL database.
-7. After committing, let Render auto-deploy from the GitHub commit.
+Do not replace the dataset or Dockerfile/requirements.txt.
 
-Final dataset:
-- 75 unique synthetic properties
-- 110 visits
-- 4 reps: Rep A, Rep B, Rep C, Rep D
-- 12 intentional cross-rep overlap visits
-- Contact name/email/phone/designation and exact-location fields
-- Opportunity, Follow-up, No Requirement, Not Interested, Access Blocked and decision-maker-unavailable scenarios
+Render Environment Variable required for Google Sheet button:
+GOOGLE_SHEET_URL = the share/view URL of the master Google Sheet.
 
-Business rule:
-Only Opportunity and active Follow-up create current rep ownership. No Requirement remains unowned but is visible as shared field intelligence.
+Existing required variable:
+GEMINI_API_KEY = your Gemini API key.
+
+PostgreSQL remains the application database. Visits, contacts and new properties are written to PostgreSQL and then returned by bootstrap/property/team endpoints.

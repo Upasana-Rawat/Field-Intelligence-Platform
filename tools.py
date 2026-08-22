@@ -228,4 +228,3 @@ def create_property_and_visit(con, property_data, visit_data):
         return {'property_id':pid,'visit_id':vid,'status':'created'}
     except Exception:
         con.rollback(); raise
-

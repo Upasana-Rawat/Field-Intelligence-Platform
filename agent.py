@@ -23,7 +23,7 @@ MAX_STEPS = 6
 DECLARATIONS = [
     {
         "name": "find_property",
-        "description": "Match a property name to known properties. Returns candidates with match scores. Several brands can have multiple branches, so if the top candidates score close together, ask the rep which branch they mean instead of guessing.",
+        "description": "Match a property name to known properties. Returns candidates with match scores. Several chains (IndiQube, Sattva, WeWork, BHIVE, Awfis) have multiple branches, so if the top candidates score close together, ask the rep which branch they mean instead of guessing.",
         "parameters": {"type": "OBJECT", "properties": {
             "query": {"type": "STRING", "description": "Property name as the rep said it"}},
             "required": ["query"]},
@@ -64,7 +64,9 @@ DECLARATIONS = [
 ]
 
 SYSTEM = """You are a field intelligence assistant for a parking-solutions sales
-team in Bengaluru. Four reps work different parts of the city. The application uses four configurable reps: Rep A, Rep B, Rep C and Rep D.
+team in Bengaluru. Four reps work different parts of the city: Upasana Rawat and
+Arghadeep Basu cover East, South-East (ORR belt), South and North-East; Prachi
+and Ritika cover the rest.
 
 Your job is to tell a rep what the team already knows before they walk into a
 building, and to surface things they would otherwise miss.
@@ -73,7 +75,7 @@ How to work:
 - Call tools to get facts. Never state a visit, contact or requirement that a
   tool did not return.
 - Resolve the property first. If two candidates score similarly, ask which
-  branch rather than picking one — brands can have several
+  branch rather than picking one — chains like IndiQube and Sattva have several
   sites and getting it wrong sends the rep to the wrong address.
 - If a colleague has already visited, lead with that. What they learned, what
   contact they obtained, what the outcome was. That is the single most useful
@@ -90,6 +92,20 @@ do not keep looking for more. An incomplete answer beats no answer.
 
 Be brief. A rep is reading this on a phone outside a building. Three or four
 short lines, the useful facts first. No preamble."""
+
+
+def _json_safe(value):
+    """Convert database-native values (notably datetime/date) to JSON-safe values."""
+    if isinstance(value, dict):
+        return {str(k): _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if hasattr(value, "isoformat"):
+        try:
+            return value.isoformat()
+        except Exception:
+            pass
+    return value
 
 
 def _key(api_key=None):
@@ -120,13 +136,13 @@ def _dispatch(con, name, args):
         return {"error": f"{type(e).__name__}: {e}"}
 
 
-def ask(con, question, rep="Rep A", api_key=None, trace=None,
+def ask(con, question, rep="Upasana Rawat", api_key=None, trace=None,
         progress=None):
     """Run the agent loop. `trace` collects the tool calls so the UI can show
     what the agent actually did — useful for the demo and for debugging."""
     key = _key(api_key)
     if not key:
-        raise RuntimeError("No GEMINI_API_KEY. Add it to the hosting platform environment variables.")
+        raise RuntimeError("No GEMINI_API_KEY. Add it to Streamlit secrets.")
     if trace is None:
         trace = []
 
@@ -168,7 +184,7 @@ def ask(con, question, rep="Rep A", api_key=None, trace=None,
         responses = []
         for c in calls:
             name, args = c["name"], dict(c.get("args") or {})
-            result = _dispatch(con, name, args)
+            result = _json_safe(_dispatch(con, name, args))
             trace.append({"tool": name, "args": args})
             responses.append({"functionResponse": {
                 "name": name, "response": {"result": result}}})

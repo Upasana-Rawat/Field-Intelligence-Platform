@@ -5,6 +5,7 @@ business/data operations, external place discovery, routing and the bounded
 AI endpoints. Secrets stay server-side.
 """
 import os
+import math
 from datetime import date
 from typing import Optional
 
@@ -30,6 +31,13 @@ REPS = ["Rep A", "Rep B", "Rep C", "Rep D"]
 LIVE = {"SPACE_SHORTAGE", "DEMAND_CAPACITY_MISMATCH", "OPERATIONAL_INEFFICIENCY",
         "FUTURE_OPPORTUNITY", "SITE_AVAILABLE", "ACCOUNT_AT_RISK"}
 _con = None
+
+def _valid_coord(lat, lon):
+    try:
+        lat, lon = float(lat), float(lon)
+        return math.isfinite(lat) and math.isfinite(lon) and -90 <= lat <= 90 and -180 <= lon <= 180
+    except (TypeError, ValueError):
+        return False
 
 
 def con():
@@ -150,6 +158,10 @@ def property_detail(pid: int):
 
 @app.get("/api/nearby")
 def nearby(lat: float, lon: float, radius: int = 1000, limit: int = 60):
+    if not _valid_coord(lat, lon):
+        raise HTTPException(400, "Invalid latitude/longitude")
+    radius = max(100, min(int(radius), 50000))
+    limit = max(1, min(int(limit), 100))
     internal_raw = tools.find_nearby(con(), lat, lon, radius, limit)
     summaries = {p["id"]: p for p in index_rows()}
     internal = []
@@ -195,6 +207,12 @@ def place_detail(place_id: str):
 
 @app.get("/api/discovered")
 def discovered(lat: float | None = None, lon: float | None = None, radius: int = 3000):
+    if (lat is None) != (lon is None):
+        raise HTTPException(400, "Latitude and longitude must be supplied together")
+    if lat is not None and lon is not None:
+        if not _valid_coord(lat, lon):
+            raise HTTPException(400, "Invalid latitude/longitude")
+        radius = max(100, min(int(radius), 50000))
     if lat is not None and lon is not None:
         places, provider = discover.search_nearby(lat, lon, radius, 100)
         internal = index_rows()
@@ -269,6 +287,8 @@ class PropertyIn(BaseModel):
 
 @app.post("/api/property")
 def add_property(p: PropertyIn):
+    if not _valid_coord(p.latitude, p.longitude):
+        raise HTTPException(400, "Valid latitude and longitude are required")
     pid = con().insert(
         """INSERT INTO properties
            (property_name, brand, branch, parent_site, area, territory,
@@ -429,15 +449,21 @@ def do_ask(a: AskIn):
 
 @app.get("/api/health")
 def health():
-    try:
-        import llm
-        model = llm.resolve()
-        model_ok = True
-    except Exception as e:
-        model = str(e); model_ok = False
-    return {"db": con().execute("SELECT COUNT(*) c FROM properties").fetchone()["c"],
-            "backend": db.backend(), "model_ok": model_ok, "model": model,
-            "google_places": bool(discover.GOOGLE_KEY)}
+    c = con()
+    props = c.execute("SELECT COUNT(*) c FROM properties").fetchone()["c"]
+    visits = c.execute("SELECT COUNT(*) c FROM visits").fetchone()["c"]
+    model = "not configured"; model_ok = False
+    if os.environ.get("GEMINI_API_KEY", "").strip():
+        try:
+            import llm
+            model = llm.resolve()
+            model_ok = True
+        except Exception as e:
+            model = str(e); model_ok = False
+    return {"db": props, "visits": visits, "backend": db.backend(),
+            "model_ok": model_ok, "model": model,
+            "google_places": bool(discover.GOOGLE_KEY),
+            "seed_file": os.path.basename(db.CSV_PATH)}
 
 
 @app.get("/api/overlap")

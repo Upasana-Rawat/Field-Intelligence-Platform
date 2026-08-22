@@ -121,7 +121,19 @@ class Conn:
 
     def execute(self, sql, args=()):
         cur = self.raw.cursor()
-        cur.execute(self._sql(sql), args)
+        try:
+            cur.execute(self._sql(sql), args)
+        except Exception:
+            # PostgreSQL marks the whole transaction as failed after one
+            # statement error. Roll it back immediately so the caller can
+            # handle the original exception without poisoning the shared
+            # connection for every subsequent request.
+            if self.is_pg:
+                try:
+                    self.raw.rollback()
+                except Exception:
+                    pass
+            raise
         return _Cursor(cur, self.is_pg)
 
     def executescript(self, script):
@@ -173,7 +185,7 @@ class _Cursor:
 
 
 def connect(url=None):
-    """Open a connection and make sure the schema exists."""
+    """Open a connection, create the schema, and leave it transaction-clean."""
     url = url if url is not None else DATABASE_URL
     if url.startswith(("postgres://", "postgresql://")):
         import psycopg
@@ -184,9 +196,17 @@ def connect(url=None):
         raw.row_factory = sqlite3.Row
         raw.execute("PRAGMA foreign_keys = ON")
         con = Conn(raw, False)
-    con.executescript(SCHEMA)
-    con.commit()
-    return con
+    try:
+        con.executescript(SCHEMA)
+        con.commit()
+        return con
+    except Exception:
+        con.rollback()
+        try:
+            raw.close()
+        except Exception:
+            pass
+        raise
 
 
 def backend():

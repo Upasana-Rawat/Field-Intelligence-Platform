@@ -1,0 +1,23 @@
+FINAL GITHUB UPLOAD
+
+Repository: Field-Intelligence-Platform
+
+1. Extract this package.
+2. Upload the CONTENTS of this folder to the repository ROOT.
+3. The data file must be:
+   data/synthetic_field_visits_110_records.csv
+4. Do not upload the ZIP itself.
+5. Do not upload .env or any secret/API key.
+6. Do not delete the Render PostgreSQL database.
+7. After committing, let Render auto-deploy from the GitHub commit.
+
+Final dataset:
+- 75 unique synthetic properties
+- 110 visits
+- 4 reps: Rep A, Rep B, Rep C, Rep D
+- 12 intentional cross-rep overlap visits
+- Contact name/email/phone/designation and exact-location fields
+- Opportunity, Follow-up, No Requirement, Not Interested, Access Blocked and decision-maker-unavailable scenarios
+
+Business rule:
+Only Opportunity and active Follow-up create current rep ownership. No Requirement remains unowned but is visible as shared field intelligence.

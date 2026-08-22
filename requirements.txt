@@ -1,0 +1,6 @@
+fastapi>=0.110
+uvicorn[standard]>=0.29
+pandas>=2.0
+requests>=2.31
+python-multipart>=0.0.9
+psycopg[binary]>=3.1

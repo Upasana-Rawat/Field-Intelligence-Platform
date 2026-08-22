@@ -1,0 +1,24 @@
+Field Intelligence Platform - FINAL TEAM INTELLIGENCE BUILD
+
+Synthetic-data demo only.
+Dataset: data/synthetic_field_visits_110_records.csv
+Unique properties: 75
+Visits: 110
+Reps: Rep A, Rep B, Rep C, Rep D
+Intentional cross-rep overlap visits: 12
+
+Core business rules:
+- A property is owned by a rep only when the current business outcome is an Opportunity or active Follow-up.
+- No Requirement does not create ownership; it becomes shared team intelligence so other reps avoid wasting a physical visit.
+- Contact name, designation, email, phone, exact location and field remarks are stored and surfaced in property/team summaries.
+- Multiple reps can appear in a property's history; ownership is not silently transferred by an overlap.
+- External places remain outside the registered property database until a rep adds them.
+
+Production environment variables:
+- DATABASE_URL: Render PostgreSQL Internal Database URL
+- GOOGLE_MAPS_API_KEY: Google Places/Routes key
+- GEMINI_API_KEY: Gemini key for Ask and voice/text extraction
+- SEED_CSV=synthetic_field_visits_110_records.csv
+- DEMO_MODE=true for the synthetic public demo
+
+Never commit real company data, personal data, API keys, database passwords, or .env files.
